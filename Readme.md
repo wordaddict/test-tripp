@@ -8,7 +8,10 @@ Get API running
 ```
 npm run start
 ```
-
+Get the consumer running
+```
+npm run consumer
+```
 ## Routes
 !important - All routes must contain a Authentication header for the appname
 

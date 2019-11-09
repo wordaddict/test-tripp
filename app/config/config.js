@@ -1,3 +1,4 @@
+require('dotenv').config();
 const app_name = 'Test project MS';
 
 const config = {
@@ -6,7 +7,7 @@ const config = {
     url: process.env.APP_URL,
     port: process.env.APP_PORT
   },
-  secret: 'ilovefood',
+  secret: process.env.SECRET,
   mongo: {
     salt_value: 10,
     connection: {
@@ -23,6 +24,24 @@ const config = {
     },
     queryLimit: process.env.MONGODB_QUERY_LIMIT,
     questionLimit: process.env.QUESTION_LIMIT
+  },
+  // RABBITMQ
+  rabbitmq: {
+    connect: `amqp://${process.env.RABBIT_USER}:${process.env.RABBIT_PASS}@${process.env.RABBIT_HOST}:${process.env.RABBIT_PORT}`,
+    queue: {
+      uploadQueue: 'bulk_Questions_Upload_Queue',
+      uploadErrorQueue: 'bulk_Questions_Error_Queue'
+    },
+    pass: process.env.RABBIT_PASS,
+    port: process.env.RABBIT_PORT,
+    user: process.env.RABBIT_USER,
+    host: process.env.RABBIT_HOST
+  },
+  redis: {
+    host: process.env.REDIS_HOST,
+    port: process.env.REDIS_PORT,
+    keyPrefix: process.env.REDIS_KEY,
+    db: process.env.REDIS_DB
   },
 
   mongoErrorCode: {

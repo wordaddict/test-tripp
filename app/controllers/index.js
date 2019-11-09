@@ -78,23 +78,43 @@ class MainController {
 
     const param = {
       msisdn,
-    }
+    };
 
-    return this.mainService.findUser(param)
-      .then((data) => {
-        if(data === null) {
+    let userData;
+    // check if user already exist in cache
+    this.mainService.getUserFromRedis(msisdn)
+      .then(async(data) => {
+      
+        if(data === null){
+          try {
+            userData = await this.mainService.findUser(param);
+            if(userData === null) {
+              return Response.failure(res, {
+                message: 'msisdn doesnt exist, please create an account'
+              }, HttpStatus.BadRequest)
+            }
+              // If data doesn't exist in redis, we would save it on redis
+            const { msisdn } = userData;
+            const dataSavedInRedis = await this.mainService.saveUserOnRedis(msisdn, userData);
+            console.log('Data saved in redis successfully', dataSavedInRedis)
+          } catch (err){
+            console.log('the error', err)
             return Response.failure(res, {
-              message: 'msisdn doesnt exist, please create an account'
-            }, HttpStatus.BadRequest)
-        }
-        const msisdn = {data}
+              message: 'Internal server Error',
+            }, HttpStatus.INTERNAL_SERVER_ERROR);
+          }
+          
+        } else {
+          userData = data;
+        };
+        const msisdn = {userData}
         return jwt.sign({msisdn}, config.secret, { expiresIn: '12h' }, (err, token) => {
           if(err === null){
             return Response.success(res, {
               message: 'Customer logged in successfully',
               response: {
-                userId: data.userId,
-                msisdn: data.msisdn,
+                userId: userData.userId,
+                msisdn: userData.msisdn,
                 token: token
               },
             }, HttpStatus.OK)
@@ -105,10 +125,8 @@ class MainController {
           }
         })
       })
-      .catch(() => {
-        return Response.failure(res, {
-          message: 'Internal server Error',
-        }, HttpStatus.INTERNAL_SERVER_ERROR);
+      .catch((err) => {
+        console.log('error from redis', err)
       })
 
   };
@@ -187,11 +205,8 @@ class MainController {
       task_id
     }
 
-    const q  = new Queue();
-    q.enqueue(param);
-    const data = q.front();
-    return consumeQueue(data)
-      .then(() => {
+    this.mainService.pushToQueue(param, 'messages')
+      .then((data) => {
         return Response.success(res, {
           message: 'message pushed successfully'
         }, HttpStatus.OK)

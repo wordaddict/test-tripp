@@ -21,6 +21,12 @@ const server = restify.createServer({
 // Connect to Mongo
 serviceLocator.get('mongo');
 
+// Connect to rabbitmq
+serviceLocator.get('rabbitmq');
+
+// Connect to redis
+serviceLocator.get('redis');
+
 // set API versioning and allow trailing slashes
 server.pre(restify.pre.sanitizePath());
 

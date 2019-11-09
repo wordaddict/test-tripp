@@ -1,34 +1,46 @@
-// const Queue = require('./controllers/queue');
-const MainServices = require('../app/services/index');
+const serviceLocator = require('../app/config/di');
 
-const consumeQueue = (data) => {
-    return new Promise((resolve, reject) => {
-        resolve(data);
+const rabbitMQClient = serviceLocator.get('rabbitmq');
+const mainService = serviceLocator.get('mainService');
+
+rabbitMQClient.then(connection => connection.createChannel())
+.then((channel) => {
+  channel.prefetch(1);
+  channel.assertQueue('messages', { durable: true, noAck: false })
+    .then(ok => channel.consume('messages', (messageObject) => {
+        console.log('consuming...', ok);
+      if (messageObject !== null) {
+        let data = messageObject.content.toString();
+        console.log('Message to consume', data)
+        data = JSON.parse(data);
         const { contact_list, message, task_id } = data;
-        return new MainServices().getContactsWithContactList({contact_list})
+        mainService.getContactsWithContactList({contact_list})
             .then((data) => {
+                console.log('All contacts', data)
+                if(data.length === 0){
+                    return;
+                }
                 const formattedData = formatMSISDN(data)
                 const params = {
                     message,
                     task_id,
                     msisdns: formattedData
                 };
-                return new MainServices().saveMessagesInDB(params)
+                mainService.saveMessagesInDB(params)
                     .then((data) => {
                         console.log('Messages saved successfully in the DB')
                     })
                     .catch((err) => {
-                        console.log('unable to save message');
-                        return;
+                        console.log('unable to save message', err);
                     })
                
             })
-            .catch(() => {
-                return;
+            .catch((err) => {
+                console.log('Error from getting contact list', err);
             })
-        
-    })
-};
+      }
+    }, {noAck: true}));
+});
 
 const formatMSISDN = (array) => {
     let finalArray = [];
@@ -37,5 +49,3 @@ const formatMSISDN = (array) => {
     };
     return finalArray;
 }
-
-module.exports = consumeQueue;
